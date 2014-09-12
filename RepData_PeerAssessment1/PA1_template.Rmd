@@ -1,0 +1,121 @@
+---
+title: "Personal Movement Monitoring"
+output: html_document
+---
+
+It is now possible to collect a large amount of data about personal movement
+using activity monitoring devices such as a Fitbit, Nike Fuelband, or Jawbone
+Up. These type of devices are part of the "quantified self" movement - a group
+of enthusiasts who take measurements about themselves regularly to improve their
+health, to find patterns in their behavior, or because they are tech geeks. But
+these data remain under-utilized both because the raw data are hard to obtain
+and there is a lack of statistical methods and software for processing and
+interpreting the data.
+
+This assignment makes use of data from a personal activity monitoring device.
+This device collects data at 5 minute intervals through out the day. The data
+consists of two months of data from an anonymous individual collected during the
+months of October and November, 2012 and include the number of steps taken in 5
+minute intervals each day.
+
+We are going to answer some questions about the personal movement monitoring
+data (which we stored in our /data directory):
+```{r}   
+setwd("C:/Users/Fer/Desktop/Coursera")
+activity <- read.csv("./data/activity.csv")
+activity$date <- as.Date (activity$date)
+```
+
+Note dates input will be taken as.Date in order to perform a better analysis.
+
+What is mean total number of steps taken per day?
+--------------------------------------------------------------
+Lets show that by making a histogram of the total number of steps taken each day
+
+
+```{r, warning=FALSE}
+library(ggplot2)
+dailysteps <- aggregate(steps ~ date, activity, sum, na.rm=TRUE)
+hist1 <- ggplot(dailysteps,aes(x=date,y=steps)) +
+        geom_bar(stat="identity") +
+        ggtitle("steps per day")
+        
+print(hist1)
+```
+
+Now we can calculate the mean and median for the steps taken per day
+
+```{r}
+c(mean(dailysteps$steps), median(dailysteps$steps))
+```
+
+What is the average daily activity pattern?
+--------------------------------------------------------------
+The same strategy can be performed for interval puposes:
+```{r}   
+stepsPerinterval <- aggregate(steps ~ interval, activity, sum)       
+```
+Let's show a time series plot of the 5-minute intervals and the average steps
+taken
+```{r}
+plot(stepsPerinterval, type = "l", col = "blue")
+```
+
+
+Now we can see the maximum step containing interval is the next one:
+
+```{r}
+stepsPerinterval[which.max (stepsPerinterval$steps),]
+```
+
+
+Imputing missing values
+--------------------------------------------------------------
+We can take a look at how many missing values are there:
+```{r}
+sum (is.na(activity$steps))
+```
+And we are going to avoid them by replacing them with the the mean for their
+5-minute interval and including them in a new dataset:
+```{r}       
+meanstepsinterval <- aggregate(steps ~ interval, activity, mean) 
+nonullactivity <- activity  
+for (i in 1:nrow(activity)){
+    if(is.na(activity$steps[i])){
+        nonullactivity$steps[i]<- meanstepsinterval[meanstepsinterval$interval==activity$interval[i],]$steps
+    }
+}
+```
+
+Now, let's show the result on a histogram:
+
+```{r}
+dailysteps1 <- aggregate(steps ~ date, nonullactivity, sum, na.rm=TRUE)
+hist2 <- ggplot (dailysteps1, aes(x=date, y=steps)) + geom_bar(stat="identity") + ggtitle("Total number of steps per day")
+print (hist2)
+```
+
+We can see as expected the mean does not differ, but the median is alittle lower:
+
+```{r}
+c(mean(dailysteps1$steps), median(dailysteps1$steps))
+```
+
+
+Are there differences in activity patterns between weekdays and weekends?
+--------------------------------------------------------------
+
+Let's show it: First we can adapt the dataset to include weekend indicator:
+```{r}  
+nonullactivity$weekend <- sapply (nonullactivity$date, FUN= function (x) {return (weekdays (x)=="domingo" | weekdays (x)=="sábado")})
+nonullactivity$weekend<- ifelse (nonullactivity$weekend, "weekend", "weekday")
+```
+
+And here is the plot:
+
+```{r}
+activityintdaytype <- aggregate (steps~interval + weekend, nonullactivity, mean)
+ggplot (activityintdaytype, aes(x=interval, y=steps)) + geom_bar(stat="identity") + facet_wrap (~weekend, nrow=2, ncol=1) + theme_bw() + geom_line (color="red", size=1)
+```
+
+We can see there are differences on the average steps per interval in weekdays and weekends.
